@@ -1,9 +1,32 @@
-<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AutoReject Privacy</title><link rel="stylesheet" href="style.css"></head><body>
-<header><span>🛡</span><div><strong>AutoReject Privacy</strong><small>Opera GX · v0.1.0</small></div></header>
-<label>Poziom ochrony<select id="level"><option value="max">Maksymalny</option><option value="standard">Standardowy</option><option value="manual">Ręczny</option></select></label>
-<label><input id="autoConfirm" type="checkbox"> Automatycznie zatwierdzaj</label>
-<label><input id="legitimateInterest" type="checkbox"> Sprzeciw wobec uzasadnionego interesu</label>
-<label><input id="notifications" type="checkbox"> Powiadomienia</label>
-<label><input id="localHistory" type="checkbox"> Historia lokalna</label>
-<h3>Historia działań</h3><ul id="history"></ul><button id="clear">Wyczyść historię</button><p id="status" role="status"></p>
-<script src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoReject Privacy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header><img src="../icons/icon-32.png" width="32" height="32" alt=""><div><strong>AutoReject Privacy</strong><small>Opera GX · v0.2.0</small></div></header>
+  <section aria-labelledby="site">
+    <strong id="site">Bieżąca witryna</strong>
+    <p id="site-status" aria-live="polite"></p>
+    <button id="pause" disabled>Wstrzymaj na tej witrynie</button>
+  </section>
+  <label>Poziom ochrony
+    <select id="level" disabled>
+      <option value="max">Maksymalny</option>
+      <option value="standard">Standardowy</option>
+      <option value="manual">Ręczny</option>
+    </select>
+  </label>
+  <label><input id="autoConfirm" type="checkbox" disabled> Automatycznie zatwierdzaj</label>
+  <label><input id="legitimateInterest" type="checkbox" disabled> Zgłaszaj sprzeciw, gdy formularz go obsługuje</label>
+  <label><input id="localHistory" type="checkbox" disabled> Zapisuj lokalną historię domen</label>
+  <h3>Historia działań</h3>
+  <ul id="history"></ul>
+  <button id="clear" disabled>Wyczyść historię</button>
+  <p id="status" role="status"></p>
+  <script src="popup.js"></script>
+</body>
+</html>

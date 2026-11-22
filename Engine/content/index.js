@@ -3,7 +3,7 @@
 
   const defaults = {
     level: 'max', autoConfirm: true, legitimateInterest: true,
-    notifications: false, localHistory: true, disabledHosts: []
+    notifications: false, localHistory: false, disabledHosts: []
   };
   const adapters = [
     {name: 'OneTrust', root: '#onetrust-banner-sdk, #onetrust-pc-sdk', reject: '#onetrust-reject-all-handler, .ot-pc-refuse-all-handler'},
@@ -25,6 +25,16 @@
   let verificationPending = false;
   const attempts = new WeakSet();
   const managedDidomi = new WeakSet();
+
+  function siteHost() {
+    if (window.top === window || !window.top) return location.hostname;
+    const ancestor = location.ancestorOrigins;
+    try {
+      return new URL(ancestor[ancestor.length - 1]).hostname;
+    } catch {
+      return '';
+    }
+  }
 
   const visible = element => Boolean(element?.getClientRects().length) &&
     getComputedStyle(element).visibility === 'visible';
@@ -127,8 +137,9 @@
     if (timer !== undefined) return;
     timer = setTimeout(() => {
       timer = undefined;
-      if (!verificationPending && settings.autoConfirm && settings.level !== 'manual' &&
-          !settings.disabledHosts.includes(location.hostname)) inspect(document);
+      const host = siteHost();
+      if (host && !verificationPending && settings.autoConfirm && settings.level !== 'manual' &&
+          !settings.disabledHosts.includes(host) && !settings.disabledHosts.includes(location.hostname)) inspect(document);
     }, 100);
   }
 

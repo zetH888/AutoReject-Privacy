@@ -2,7 +2,7 @@
 
 Open-source Opera GX / Chromium Manifest V3 extension to reject optional tracking consent where safely supported.
 
-> **Status: v0.1.0 proof of concept.** This is not a production-grade privacy guarantee. Test locally before relying on it. CMP coverage is limited and legitimate-interest objections are **not yet reliably implemented**.
+> **Status: v0.2.0 beta.** The extension supports selected consent dialogs. Coverage and legitimate-interest objections depend on the controls exposed by the website.
 
 ## Default configuration
 
@@ -11,8 +11,7 @@ Open-source Opera GX / Chromium Manifest V3 extension to reject optional trackin
 | Protection | `max` |
 | Auto-confirm | `true` |
 | Legitimate-interest objection | `true` (requested, implementation pending) |
-| Notifications | `false` |
-| Local history | `true` (last 200 actions) |
+| Local history | Off for new installations. Existing choices are preserved |
 
 ## Layout
 
@@ -43,7 +42,7 @@ npm test
 npm run build
 ```
 
-Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and choose the generated **`Engine/dist/`** directory. Browser permission: `storage`; content script runs on HTTP(S) pages, including supported frames.
+Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and choose the generated **`Engine/dist/`** directory. The extension requests `storage` for local settings and optional history and `activeTab` to identify the current site when you open the popup. Its content script runs on HTTP(S) pages, including supported frames.
 
 ## Current behavior
 
@@ -53,7 +52,7 @@ Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and c
 - Cookiebot rejection is recorded as `rejected` when its saved consent cookie confirms all three optional categories are off. Other submissions are recorded as `submitted-unverified` pending verification of the saved state.
 - Watches DOM mutations, supports open shadow roots and frames where content scripts are permitted.
 - Stores compact history locally in `chrome.storage.local`; no analytics backend.
-- Offers popup controls; switches for legitimate-interest and notifications are configured but have no fully implemented behavior yet.
+- Shows the current site's automation status and lets you pause or resume automation for that hostname. The latest recorded action is shown when history is enabled.
 
 ## Safety and limitations
 
@@ -61,8 +60,7 @@ Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and c
 - Some vendors use closed Shadow DOM, cross-origin embedded frames, proprietary controls, or obscure consent storage, which may prevent rejection.
 - Clicking "Reject all" does not necessarily include objections to every legitimate-interest processing purpose. The full TCF objection flow is a future milestone.
 - Does not directly modify cookies, bypass paywalls, or claim to enforce privacy policies outside the visible UI.
-- Local history contains site hostnames. Clear it from the popup whenever desired.
-- `disabledHosts` can be configured in storage but has no popup editor yet.
+- Optional local history stores up to 200 actions, including site hostnames. You can stop recording or clear saved entries from the popup. See the [privacy policy](PRIVACY.md).
 - This proof of concept requires browser-based CMP integration testing before public release.
 
 ## Planned roadmap

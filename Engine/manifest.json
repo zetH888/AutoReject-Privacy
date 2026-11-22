@@ -2,13 +2,15 @@
   "manifest_version": 3,
   "name": "AutoReject Privacy",
   "description": "Reject optional cookie consent safely on supported websites.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "permissions": [
-    "storage"
+    "storage",
+    "activeTab"
   ],
   "action": {
     "default_popup": "ui/popup.html",
-    "default_title": "AutoReject Privacy"
+    "default_title": "AutoReject Privacy",
+    "default_icon": {"16": "icons/icon-16.png", "32": "icons/icon-32.png"}
   },
   "background": {
     "service_worker": "background/index.js"
@@ -26,5 +28,10 @@
       "all_frames": true
     }
   ],
-  "icons": {}
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
 }

@@ -1,8 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';
 const root=new URL('../',import.meta.url);
-test('manifest is MV3 with local storage only',()=>{
+test('manifest is MV3 with storage and temporary access for the current tab',()=>{
 const m=JSON.parse(readFileSync(new URL('manifest.json',root)));
-assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage']);assert.equal(m.content_scripts[0].all_frames,true);
+assert.equal(m.manifest_version,3);assert.deepEqual(m.permissions,['storage','activeTab']);assert.equal(m.content_scripts[0].all_frames,true);
+for(const icon of Object.values(m.icons)) assert.ok(existsSync(new URL(icon,root)),icon);
 });
 test('critical files present',()=>{
 for(const p of ['content/index.js','background/index.js','ui/popup.html','ui/popup.js']) assert.ok(existsSync(new URL(p,root)),p)

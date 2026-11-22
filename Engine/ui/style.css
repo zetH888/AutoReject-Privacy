@@ -1,1 +1,6 @@
 :root{color-scheme:dark;font-family:system-ui,Arial,sans-serif}body{width:340px;margin:0;padding:18px;background:#151922;color:#f5f6fa}header{display:flex;align-items:center;gap:12px;margin-bottom:19px}header span{font-size:30px}strong{font-size:17px}small{display:block;color:#a2abba;margin-top:3px}label{display:block;margin:12px 0;line-height:1.4}input[type=checkbox]{accent-color:#8b5cf6}select{display:block;width:100%;padding:9px;margin-top:6px;border:1px solid #444d5e;border-radius:8px;background:#232a36;color:#fff}h3{font-size:14px;margin-top:21px}ul{padding-left:19px;font-size:12px;max-height:130px;overflow:auto;color:#c2c9d5}li{margin:6px 0}button{width:100%;padding:9px;border:1px solid #4e5669;border-radius:8px;background:#282f3b;color:white;cursor:pointer}#status{font-size:12px;color:#aebbd1}
+:disabled { cursor: default; opacity: .65; }
+section { padding: 12px; margin-bottom: 16px; background: #232a36; border-radius: 8px; }
+#site { overflow-wrap: anywhere; }
+#site-status { font-size: 13px; color: #d2d8e3; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #bfabff; outline-offset: 2px; }

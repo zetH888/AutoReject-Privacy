@@ -5,7 +5,10 @@ import {runInNewContext} from 'node:vm';
 
 const contentScript = readFileSync(new URL('../content/index.js', import.meta.url), 'utf8');
 
-function runFixture({level = 'max', unknown = false, adapter = 'Didomi', cookie = ''} = {}) {
+function runFixture({
+  level = 'max', unknown = false, adapter = 'Didomi', cookie = '',
+  disabledHosts = [], topOrigin
+} = {}) {
   const clicks = [];
   const history = [];
   const timers = [];
@@ -45,12 +48,13 @@ function runFixture({level = 'max', unknown = false, adapter = 'Didomi', cookie 
     querySelectorAll: selector => selector === (adapter === 'Cookiebot' ? '#CybotCookiebotDialog' : '#didomi-host') ? [panel] : []
   };
   runInNewContext(contentScript, {
-    window: {}, document, location: {hostname: 'fixture.test'},
+    window: topOrigin ? {top: {}} : {}, document,
+    location: {hostname: 'fixture.test', ancestorOrigins: topOrigin ? [topOrigin] : []}, URL,
     getComputedStyle: () => ({visibility: 'visible'}),
     setTimeout: fn => timers.push(fn),
     MutationObserver: class { observe() {} },
     chrome: {
-      storage: {local: {get: (_, callback) => callback({settings: {level}})}, onChanged: {addListener() {}}},
+      storage: {local: {get: (_, callback) => callback({settings: {level, disabledHosts}})}, onChanged: {addListener() {}}},
       runtime: {sendMessage: async message => { history.push(message.status); }}
     }
   });
@@ -72,6 +76,13 @@ test('Didomi stops before editing an unrecognized group', () => {
 
 test('manual mode leaves Didomi untouched', () => {
   assert.deepEqual(runFixture({level: 'manual'}), {clicks: [], history: []});
+});
+
+test('pausing a site also applies inside its cross-origin consent frame', () => {
+  const topOrigin = 'https://paused.test';
+  assert.deepEqual(runFixture({topOrigin, disabledHosts: ['paused.test']}), {clicks: [], history: []});
+  assert.deepEqual(runFixture({topOrigin: 'null'}), {clicks: [], history: []});
+  assert.ok(runFixture({topOrigin}).clicks.includes('Zapisz'));
 });
 
 test('Cookiebot records verified rejection only with all optional flags off', () => {
