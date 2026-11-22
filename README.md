@@ -1,63 +1,81 @@
 # AutoReject Privacy
 
-AutoReject Privacy to projekt rozszerzenia dla Opera GX i innych przeglądarek opartych na Chromium. Rozszerzenie ma rozpoznawać formularze zgód, odrzucać opcjonalne cele przetwarzania i zapisywać wybór użytkownika. Projekt zakłada Manifest V3 i przetwarzanie danych wyłącznie w przeglądarce, bez serwera i telemetrii.
+Open-source Opera GX / Chromium Manifest V3 extension to reject optional tracking consent where safely supported.
 
-## Status projektu
+> **Status: v0.1.0 proof of concept.** This is not a production-grade privacy guarantee. Test locally before relying on it. CMP coverage is limited and legitimate-interest objections are **not yet reliably implemented**.
 
-Repozytorium zawiera plan wydania `0.1.0`. Kod rozszerzenia, testy i paczka instalacyjna zostaną dodane w kolejnych etapach.
+## Default configuration
 
-## Ustawienia domyślne
-
-| Ustawienie | Wartość |
+| Setting | Default |
 | --- | --- |
-| Poziom ochrony | `max` |
-| Automatyczne zatwierdzanie wyboru | Tak |
-| Sprzeciw wobec uzasadnionego interesu | Tak |
-| Powiadomienia | Nie |
-| Lokalna historia działań | Tak |
+| Protection | `max` |
+| Auto-confirm | `true` |
+| Legitimate-interest objection | `true` (requested, implementation pending) |
+| Notifications | `false` |
+| Local history | `true` (last 200 actions) |
 
-W trybie `max` rozszerzenie ma odrzucać wszystkie rozpoznane opcjonalne cele. Sprzeciw wobec uzasadnionego interesu ma być składany tam, gdzie dany formularz udostępnia taką możliwość. Użytkownik będzie mógł wyłączyć automatyzację dla wybranych domen.
-
-## Zasady działania
-
-- Rozszerzenie działa tylko na jednoznacznie rozpoznanych kontrolkach formularza. W przypadku niejednoznaczności pozostawia wybór użytkownikowi.
-- Ponowne skanowanie pozostawia wyłączone opcje w stanie `OFF` i pomija opcje wymagane.
-- Wykrycie formularza, wykonanie wyboru i weryfikacja zapisu to odrębne etapy. Historia odnotowuje potwierdzony wynik, gdy stan formularza pozwala go zweryfikować.
-- Ustawienia, wyjątki i historia są przechowywane lokalnie. Historia pomija treść stron, identyfikatory reklamowe i wartości plików cookie.
-
-## Plan wydania `0.1.0`
-
-1. Przygotować manifest, kompilację TypeScript i ustawienia lokalne.
-2. Zbudować wykrywanie formularzy wczytywanych wraz ze stroną i dynamicznie oraz obsługę jednoznacznych przycisków odrzucenia.
-3. Przygotować adaptery dla OneTrust, Cookiebot, Didomi i Usercentrics. Obsługę przełączników oraz sprzeciwu zweryfikować osobno dla każdego dostawcy.
-4. Dodać panel ustawień, wyjątki dla domen i lokalną historię.
-5. Sprawdzić działanie na przykładowych formularzach i ręcznie w Opera GX, a następnie przygotować paczkę instalacyjną.
-
-Zakres obsługi zależy od wersji i konfiguracji formularza. Część formularzy działa w ramkach lub zamkniętych drzewach Shadow DOM. Sprzeciw wobec uzasadnionego interesu może wymagać dodatkowych kroków właściwych dla danego dostawcy.
-
-## Docelowa struktura repozytorium
+## Layout
 
 ```text
 AutoReject-Privacy/
 ├── Engine/
 │   ├── manifest.json
-│   ├── core/
-│   ├── adapters/
 │   ├── background/
 │   ├── content/
-│   ├── storage/
 │   ├── ui/
-│   ├── assets/
-│   └── tests/
-├── .github/
-│   └── workflows/
+│   ├── tools/
+│   ├── tests/
+│   └── package.json
+├── .github/workflows/ci.yml
 ├── README.md
 ├── LICENSE
+├── CHANGELOG.md
 └── .gitignore
 ```
 
-`Engine/` zawiera kod, konfigurację kompilacji i testy rozszerzenia. Wynik kompilacji trafi do `Engine/dist/` i będzie można wczytać go jako rozszerzenie bezpośrednio w Opera GX. Główną gałęzią repozytorium jest `main`.
+## Build and install in Opera GX
 
-## Licencja
+Requires Node.js 20+.
 
-[MIT](LICENSE)
+```bash
+cd Engine
+npm test
+npm run build
+```
+
+Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and choose the generated **`Engine/dist/`** directory. Browser permission: `storage`; content script runs on HTTP(S) pages, including supported frames.
+
+## Current behavior
+
+- Detects known CMP containers for OneTrust, Cookiebot, Didomi and selected Usercentrics layouts.
+- Clicks an explicit **reject-all** control when unambiguously identified.
+- For recognized panels only, attempts to disable checked, non-required checkbox inputs. Saves only when it changed some toggles and finds a precise save-choices label.
+- Watches DOM mutations, supports open shadow roots and frames where content scripts are permitted.
+- Stores compact history locally in `chrome.storage.local`; no analytics backend.
+- Offers popup controls; switches for legitimate-interest and notifications are configured but have no fully implemented behavior yet.
+
+## Safety and limitations
+
+- Unrecognized dialogs are left untouched instead of guessing.
+- Some vendors use closed Shadow DOM, cross-origin embedded frames, proprietary controls, or obscure consent storage, which may prevent rejection.
+- Clicking "Reject all" does not necessarily include objections to every legitimate-interest processing purpose. The full TCF objection flow is a future milestone.
+- Does not directly modify cookies, bypass paywalls, or claim to enforce privacy policies outside the visible UI.
+- Local history contains site hostnames. Clear it from the popup whenever desired.
+- `disabledHosts` can be configured in storage but has no popup editor yet.
+- This proof of concept requires browser-based CMP integration testing before public release.
+
+## Planned roadmap
+
+1. Complete adapter-specific legitimate-interest rejection and UI preference handling.
+2. Add fixture-driven integration and Playwright browser tests for each CMP and edge cases.
+3. Build exclusion management, detailed adapter status, and opt-in diagnostics.
+4. Audit permissions, accessibility, performance and vendor compatibility.
+5. Package signed release artifacts and prepare store distribution.
+
+## Development
+
+`Engine/` is self-contained. The GitHub workflow executes tests and builds in that directory. `Engine/dist/` is generated and excluded from version control.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

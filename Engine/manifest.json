@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "AutoReject Privacy",
+  "description": "Reject optional cookie consent safely on supported websites.",
+  "version": "0.1.0",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "ui/popup.html",
+    "default_title": "AutoReject Privacy"
+  },
+  "background": {
+    "service_worker": "background/index.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content/index.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "icons": {}
+}
