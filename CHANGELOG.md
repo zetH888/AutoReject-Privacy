@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Handle Opera's own cookie dialog and save the selected options once analytics and marketing are both off.
+
 ## 0.2.0
 
 - Add site-level pause and resume, including consent frames embedded by paused sites.

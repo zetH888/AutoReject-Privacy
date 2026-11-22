@@ -7,7 +7,7 @@ const contentScript = readFileSync(new URL('../content/index.js', import.meta.ur
 
 function runFixture({
   level = 'max', unknown = false, adapter = 'Didomi', cookie = '',
-  disabledHosts = [], topOrigin
+  disabledHosts = [], topOrigin, hostname = 'fixture.test', operaMarketing = false
 } = {}) {
   const clicks = [];
   const history = [];
@@ -42,14 +42,34 @@ function runFixture({
     querySelectorAll: () => adapter === 'Cookiebot' ? [decline] : [],
     querySelector: selector => selector.startsWith('.didomi') ? preferences : learnMore
   };
+  function toggle(name, active) {
+    const control = button(name);
+    control.matches = selector => selector === name || (selector === '.active' && active);
+    control.click = () => { active = false; clicks.push(name); };
+    return control;
+  }
+  const operaMarketingControl = toggle('.marketing_option_switch:not(.always_on)', operaMarketing);
+  const operaSave = button('Zaakceptuj wybrane');
+  const operaPanel = {
+    ...button(''),
+    querySelectorAll: () => [
+      toggle('.always_on.active', true),
+      operaMarketingControl,
+      toggle('.analytics_option_switch:not(.always_on)', false)
+    ].concat(unknown ? [button('Unknown')] : []),
+    querySelector: () => operaSave
+  };
   const document = {
     cookie,
     documentElement: {},
-    querySelectorAll: selector => selector === (adapter === 'Cookiebot' ? '#CybotCookiebotDialog' : '#didomi-host') ? [panel] : []
+    querySelector: () => adapter === 'Opera' ? operaPanel : null,
+    querySelectorAll: selector => ({
+      Cookiebot: '#CybotCookiebotDialog', Didomi: '#didomi-host'
+    })[adapter] === selector ? [panel] : []
   };
   runInNewContext(contentScript, {
     window: topOrigin ? {top: {}} : {}, document,
-    location: {hostname: 'fixture.test', ancestorOrigins: topOrigin ? [topOrigin] : []}, URL,
+    location: {hostname, ancestorOrigins: topOrigin ? [topOrigin] : []}, URL,
     getComputedStyle: () => ({visibility: 'visible'}),
     setTimeout: fn => timers.push(fn),
     MutationObserver: class { observe() {} },
@@ -95,4 +115,17 @@ test('Cookiebot records verified rejection only with all optional flags off', ()
       clicks: ['Deny'], history: [status]
     });
   }
+});
+
+test('Opera saves selected cookies only after the two optional categories are off', () => {
+  const fixture = {adapter: 'Opera', hostname: 'www.opera.com'};
+  assert.deepEqual(runFixture(fixture), {
+    clicks: ['Zaakceptuj wybrane'], history: ['submitted-unverified']
+  });
+  assert.deepEqual(runFixture({...fixture, operaMarketing: true}), {
+    clicks: ['.marketing_option_switch:not(.always_on)', 'Zaakceptuj wybrane'],
+    history: ['submitted-unverified']
+  });
+  assert.deepEqual(runFixture({...fixture, unknown: true}), {clicks: [], history: []});
+  assert.deepEqual(runFixture({...fixture, hostname: 'other.test'}), {clicks: [], history: []});
 });

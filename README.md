@@ -2,7 +2,7 @@
 
 Open-source Opera GX / Chromium Manifest V3 extension to reject optional tracking consent where safely supported.
 
-> **Status: v0.2.0 beta.** The extension supports selected consent dialogs. Coverage and legitimate-interest objections depend on the controls exposed by the website.
+> **Status: v0.2.1 beta.** The extension supports selected consent dialogs. Coverage and legitimate-interest objections depend on the controls exposed by the website.
 
 ## Default configuration
 
@@ -49,6 +49,7 @@ Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and c
 - Detects known CMP containers for OneTrust, Cookiebot, Didomi and selected Usercentrics layouts.
 - Clicks an explicit **reject-all** control when unambiguously identified.
 - On supported Didomi preferences panels, opens the settings, selects explicit refusal controls and submits only when every visible choice group is recognized and set to refusal.
+- On the recognized cookie dialog on opera.com, saves the selected options once marketing and analytics are both off.
 - Cookiebot rejection is recorded as `rejected` when its saved consent cookie confirms all three optional categories are off. Other submissions are recorded as `submitted-unverified` pending verification of the saved state.
 - Watches DOM mutations, supports open shadow roots and frames where content scripts are permitted.
 - Stores compact history locally in `chrome.storage.local`; no analytics backend.

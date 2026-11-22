@@ -116,7 +116,29 @@
     return true;
   }
 
+  function handleOpera(root) {
+    if (!['opera.com', 'www.opera.com'].includes(location.hostname)) return false;
+    const panel = root.querySelector('#cookie-consent.cookie-consent__wrapper--visible .cookie-consent__advanced');
+    if (!visible(panel)) return false;
+    const switches = [...panel.querySelectorAll('.cookie-consent__switch')].filter(visible);
+    const required = switches.filter(control => control.matches('.always_on.active'));
+    const marketing = switches.filter(control => control.matches('.marketing_option_switch:not(.always_on)'));
+    const analytics = switches.filter(control => control.matches('.analytics_option_switch:not(.always_on)'));
+    const save = panel.querySelector('.cookie-selection__btn[role="button"]:not(.cookie-all__btn)');
+    if (switches.length !== 3 || required.length !== 1 || marketing.length !== 1 ||
+        analytics.length !== 1 || marketing[0] === analytics[0] || !enabled(save)) return false;
+
+    const active = [marketing[0], analytics[0]].find(control => control.matches('.active'));
+    if (!active) return submit(save, 'Opera');
+    if (settings.level !== 'max' || !enabled(active) || attempts.has(active)) return false;
+    attempts.add(active);
+    active.click();
+    schedule();
+    return true;
+  }
+
   function inspect(root) {
+    if (handleOpera(root)) return true;
     for (const adapter of adapters) {
       for (const panel of root.querySelectorAll(adapter.root)) {
         if (!visible(panel)) continue;

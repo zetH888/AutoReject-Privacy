@@ -1,5 +1,5 @@
 const statuses = new Set(['rejected', 'submitted-unverified']);
-const adapters = new Set(['OneTrust', 'Cookiebot', 'Didomi', 'Usercentrics']);
+const adapters = new Set(['OneTrust', 'Cookiebot', 'Didomi', 'Usercentrics', 'Opera']);
 let historyQueue = Promise.resolve();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
