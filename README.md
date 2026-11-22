@@ -49,7 +49,8 @@ Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and c
 
 - Detects known CMP containers for OneTrust, Cookiebot, Didomi and selected Usercentrics layouts.
 - Clicks an explicit **reject-all** control when unambiguously identified.
-- For recognized panels only, attempts to disable checked, non-required checkbox inputs. Saves only when it changed some toggles and finds a precise save-choices label.
+- On supported Didomi preferences panels, opens the settings, selects explicit refusal controls and submits only when every visible choice group is recognized and set to refusal.
+- Cookiebot rejection is recorded as `rejected` when its saved consent cookie confirms all three optional categories are off. Other submissions are recorded as `submitted-unverified` pending verification of the saved state.
 - Watches DOM mutations, supports open shadow roots and frames where content scripts are permitted.
 - Stores compact history locally in `chrome.storage.local`; no analytics backend.
 - Offers popup controls; switches for legitimate-interest and notifications are configured but have no fully implemented behavior yet.
@@ -74,7 +75,7 @@ Open `opera://extensions`, enable Developer Mode, select **Load unpacked** and c
 
 ## Development
 
-`Engine/` is self-contained. The GitHub workflow executes tests and builds in that directory. `Engine/dist/` is generated and excluded from version control.
+`Engine/` is self-contained. The GitHub workflow executes structure and consent regression tests and builds the extension in that directory. `Engine/dist/` is generated and excluded from version control.
 
 ## License
 

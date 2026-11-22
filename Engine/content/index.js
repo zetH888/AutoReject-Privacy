@@ -1,89 +1,149 @@
 (() => {
   'use strict';
-  const DEFAULTS = {level:'max', autoConfirm:true, legitimateInterest:true, notifications:false, localHistory:true, disabledHosts:[]};
+
+  const defaults = {
+    level: 'max', autoConfirm: true, legitimateInterest: true,
+    notifications: false, localHistory: true, disabledHosts: []
+  };
+  const adapters = [
+    {name: 'OneTrust', root: '#onetrust-banner-sdk, #onetrust-pc-sdk', reject: '#onetrust-reject-all-handler, .ot-pc-refuse-all-handler'},
+    {name: 'Cookiebot', root: '#CybotCookiebotDialog', reject: '#CybotCookiebotDialogBodyButtonDecline'},
+    {name: 'Didomi', root: '#didomi-host', reject: '#didomi-notice-disagree-button, .didomi-components-button--disagree'},
+    {name: 'Usercentrics', root: '#usercentrics-root, [data-testid="uc-container"]', reject: '[data-testid="uc-deny-all-button"]'}
+  ];
+  const rejectLabel = /^(reject all|reject optional|decline all|deny all|refuse all|odrzuć wszystkie|odrzuć opcjonalne|alle ablehnen|tout refuser|rechazar (todo|todas))$/i;
+  const didomiChoices = '.didomi-consent-popup-data-processing__buttons_tcf_v2 [role="radiogroup"]';
+  const consentLabels = /^(nie akceptuję|disagree|i disagree|do not agree)$/i;
+  const acceptLabels = /^(akceptuję|agree|i agree|accept)$/i;
+  const objectionLabels = /^(sprzeciwiam się|zgłaszam sprzeciw|object|i object)$/i;
+  const allowInterestLabels = /^(nie zgłaszam sprzeciwu|nie sprzeciwiam się|do not object|i do not object)$/i;
   if (window.__autoRejectPrivacyLoaded) return;
   window.__autoRejectPrivacyLoaded = true;
-  let settings = DEFAULTS;
-  let scanning = false;
-  let scheduled = false;
-  const attempted = new WeakSet();
-  const words = {
-    reject: [/^reject all$/i, /^reject optional$/i, /^decline all$/i, /^deny all$/i, /^refuse all$/i,
-      /^odrzuć wszystkie$/i, /^odrzuć opcjonalne$/i, /^odmów wszystkim$/i, /^odmów zgody$/i,
-      /^alle ablehnen$/i, /^tout refuser$/i, /^rechazar (todo|todas)$/i],
-    prefs: [/^manage (options|preferences|settings)$/i, /^customi[sz]e$/i, /^preferences$/i,
-      /^ustawienia (prywatności|cookies|zgód)$/i, /^zarządzaj (zgodami|preferencjami)$/i,
-      /^dostosuj (zgody|ustawienia)$/i],
-    save: [/^confirm (my )?(choices|selections)$/i, /^save (my )?(choices|preferences|settings)$/i,
-      /^allow selection$/i, /^potwierdź wybrane opcje$/i, /^zapisz (preferencje|wybór|ustawienia)$/i,
-      /^speichern$/i, /^enregistrer (mes )?choix$/i]
-  };
-  function text(el) {return (el.innerText || el.textContent || el.getAttribute('aria-label') || '').replace(/\s+/g,' ').trim().slice(0,120)}
-  function match(el, patterns) {return patterns.some(rx=>rx.test(text(el)))}
-  function visible(el) {return !!el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden'}
-  function buttons(root) {return [...root.querySelectorAll('button, [role="button"], input[type="button"]')].filter(visible)}
-  function report(status, adapter) {try{chrome.runtime.sendMessage({type:'CONSENT_RESULT', status, adapter})}catch{}}
-  function clickOnce(el, status, adapter) {
-    if (attempted.has(el)) return false;
-    attempted.add(el);el.click();report(status,adapter);return true;
+
+  let settings = defaults;
+  let timer;
+  let verificationPending = false;
+  const attempts = new WeakSet();
+  const managedDidomi = new WeakSet();
+
+  const visible = element => Boolean(element?.getClientRects().length) &&
+    getComputedStyle(element).visibility === 'visible';
+  const enabled = element => visible(element) &&
+    !element.matches(':disabled, [aria-disabled="true"]');
+  const label = element => (element.innerText || element.textContent || element.getAttribute('aria-label') || '')
+    .replace(/\s+/g, ' ').trim();
+
+  function report(status, adapter) {
+    chrome.runtime.sendMessage({type: 'CONSENT_RESULT', status, adapter}).catch(() => {});
   }
-  function inspect(root) {
-    // Strict allowlist of recognized CMP roots. Generic pages are deliberately not clicked.
-    const specs = [
-      {name:'OneTrust', selector:'#onetrust-banner-sdk, #onetrust-pc-sdk', deny:'#onetrust-reject-all-handler, .ot-pc-refuse-all-handler', prefs:'#onetrust-pc-btn-handler'},
-      {name:'Cookiebot', selector:'#CybotCookiebotDialog', deny:'#CybotCookiebotDialogBodyButtonDecline'},
-      {name:'Didomi', selector:'#didomi-host', deny:'#didomi-notice-disagree-button, .didomi-components-button--disagree'},
-      {name:'Usercentrics', selector:'#usercentrics-root, [data-testid="uc-container"]', deny:'[data-testid="uc-deny-all-button"]'}
-    ];
-    for (const spec of specs) {
-      for (const panel of root.querySelectorAll(spec.selector)) {
-        if (!visible(panel)) continue;
-        const denied = panel.querySelector(spec.deny);
-        if (denied && visible(denied) && clickOnce(denied,'rejected',spec.name)) return true;
-        const bs=buttons(panel);
-        const reject=bs.find(x=>match(x,words.reject));
-        if (reject && clickOnce(reject,'rejected',spec.name)) return true;
-        const pref=spec.prefs && panel.querySelector(spec.prefs);
-        if (pref && visible(pref) && clickOnce(pref,'preferences-opened',spec.name)) return true;
-        // A save button is only safe after explicit off-switch processing.
-        if (settings.level==='max') {
-          let changes=0;
-          for(const input of panel.querySelectorAll('input[type="checkbox"]')) {
-            if (!input.checked || input.disabled || input.required || !visible(input)) continue;
-            const scope=input.closest('label, [role="group"], li') || input.parentElement;
-            const label=text(scope).toLowerCase();
-            if (/(necessary|essential|required|niezbędn|wymagan|konieczn)/i.test(label)) continue;
-            input.click(); if (!input.checked) changes++;
-          }
-          if (changes && settings.autoConfirm) {
-            const save=bs.find(x=>match(x,words.save));
-            if(save && clickOnce(save,'saved-optional-off',spec.name)) return true;
-          }
-          if(changes) { report('switched-optional-off-needs-confirmation',spec.name);return true; }
-        }
+
+  function cookieBotRejected() {
+    const entry = document.cookie.split(/;\s*/).find(cookie => cookie.startsWith('CookieConsent='));
+    if (!entry) return false;
+    try {
+      const value = decodeURIComponent(entry.slice('CookieConsent='.length));
+      return ['preferences', 'statistics', 'marketing'].every(category =>
+        new RegExp('(?:^|[,{])\\s*["\']?' + category + '["\']?\\s*:\\s*false\\s*(?=[,}])', 'i').test(value)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function submit(button, adapter) {
+    if (!enabled(button) || attempts.has(button)) return false;
+    attempts.add(button);
+    verificationPending = true;
+    button.click();
+    setTimeout(() => {
+      report(adapter === 'Cookiebot' && cookieBotRejected() ? 'rejected' : 'submitted-unverified', adapter);
+      verificationPending = false;
+      schedule();
+    }, 700);
+    return true;
+  }
+
+  function didomiChoice(group) {
+    const radios = [...group.querySelectorAll('button[role="radio"]')].filter(visible);
+    if (radios.length !== 2 || !radios.every(radio => /^(true|false)$/.test(radio.getAttribute('aria-checked')))) return null;
+    if (radios.some(radio => acceptLabels.test(label(radio)))) {
+      return radios.find(radio => consentLabels.test(label(radio))) || null;
+    }
+    if (settings.legitimateInterest && radios.some(radio => allowInterestLabels.test(label(radio)))) {
+      return radios.find(radio => objectionLabels.test(label(radio))) || null;
+    }
+    return null;
+  }
+
+  function handleDidomi(panel) {
+    if (settings.level !== 'max' || !settings.autoConfirm) return false;
+    const preferences = panel.querySelector('.didomi-consent-popup__dialog[role="dialog"]');
+    if (visible(preferences)) {
+      if (!managedDidomi.has(panel)) return false;
+      const groups = [...preferences.querySelectorAll(didomiChoices)].filter(visible);
+      const targets = groups.map(didomiChoice);
+      const allGroups = [...preferences.querySelectorAll('[role="radiogroup"]')].filter(visible);
+      if (!targets.length || allGroups.length !== groups.length || targets.some(target => !enabled(target))) return false;
+      const next = targets.find(target => target.getAttribute('aria-checked') === 'false');
+      if (next) {
+        if (attempts.has(next)) return false;
+        attempts.add(next);
+        next.click();
+        schedule();
+        return true;
       }
+      if (!submit(preferences.querySelector('#btn-toggle-save'), 'Didomi')) return false;
+      managedDidomi.delete(panel);
+      return true;
+    }
+
+    const learnMore = panel.querySelector('#didomi-notice #didomi-notice-learn-more-button');
+    if (!enabled(learnMore) || attempts.has(learnMore)) return false;
+    attempts.add(learnMore);
+    managedDidomi.add(panel);
+    learnMore.click();
+    schedule();
+    return true;
+  }
+
+  function inspect(root) {
+    for (const adapter of adapters) {
+      for (const panel of root.querySelectorAll(adapter.root)) {
+        if (!visible(panel)) continue;
+        const controls = [...panel.querySelectorAll('button, [role="button"]')].filter(enabled);
+        const direct = controls.find(button => button.matches(adapter.reject)) ||
+          controls.find(button => rejectLabel.test(label(button)));
+        if (direct && submit(direct, adapter.name)) return true;
+        if (adapter.name === 'Didomi' && handleDidomi(panel)) return true;
+      }
+    }
+    for (const element of root.querySelectorAll('*')) {
+      if (element.shadowRoot && inspect(element.shadowRoot)) return true;
     }
     return false;
   }
-  function roots() {
-    const result=[document];
-    const walk=(root)=>{for(const el of root.querySelectorAll('*'))if(el.shadowRoot){result.push(el.shadowRoot);walk(el.shadowRoot)}};
-    walk(document);return result;
-  }
+
   function schedule() {
-    if (scheduled) return;
-    scheduled=true;
-    setTimeout(()=>{scheduled=false; if(scanning)return;scanning=true;
-      try {if(settings.level!=='manual' && !settings.disabledHosts.includes(location.hostname)){
-        for(const root of roots()) if(inspect(root)) break;
-      }} finally {scanning=false}
-    },250);
+    if (timer !== undefined) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (!verificationPending && settings.autoConfirm && settings.level !== 'manual' &&
+          !settings.disabledHosts.includes(location.hostname)) inspect(document);
+    }, 100);
   }
-  chrome.storage.local.get('settings', ({settings: saved})=>{
-    settings={...DEFAULTS,...saved};schedule();
-    new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,attributes:false});
+
+  chrome.storage.local.get('settings', ({settings: saved}) => {
+    settings = {...defaults, ...saved};
+    new MutationObserver(schedule).observe(document.documentElement, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['aria-checked', 'aria-disabled', 'disabled', 'hidden', 'class']
+    });
+    schedule();
   });
-  chrome.storage.onChanged.addListener((changes,area)=>{
-    if(area==='local' && changes.settings){settings={...DEFAULTS,...changes.settings.newValue};schedule()}
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings) {
+      settings = {...defaults, ...changes.settings.newValue};
+      schedule();
+    }
   });
 })();
